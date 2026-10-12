@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Larkway Support Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">PP</div>
+      <div>
+        <div class="brand-name">Larkway</div>
+        <div class="brand-sub">Support Agent</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Signed in as</div>
+      <select id="user-select" class="select"></select>
+      <div id="user-detail" class="user-detail"></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Try asking</div>
+      <div id="suggestions" class="suggestions"></div>
+    </div>
+
+    <div class="panel grow">
+      <div class="panel-title">Agent tools</div>
+      <div id="tool-list" class="tool-list"></div>
+    </div>
+
+    <div class="panel">
+      <div id="dataset-note" class="dataset-note"></div>
+      <button id="reset-btn" class="ghost-btn">Clear conversation</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <nav class="tabs">
+      <button class="tab active" data-view="chat">Chat</button>
+      <button class="tab" data-view="ops" id="ops-tab">Operations signals</button>
+      <div class="spacer"></div>
+      <div id="model-badge" class="badge"></div>
+    </nav>
+
+    <!-- Chat view ------------------------------------------------------- -->
+    <section id="view-chat" class="view active">
+      <div id="transcript" class="transcript"></div>
+      <form id="composer" class="composer">
+        <textarea id="input" rows="1" placeholder="Ask about an order, a policy, an SLA…" autocomplete="off"></textarea>
+        <button id="send" type="submit" class="send-btn" aria-label="Send">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6 3.4 10l12.6 2-12.6 2z" fill="currentColor"/></svg>
+        </button>
+      </form>
+    </section>
+
+    <!-- Operations view ------------------------------------------------- -->
+    <section id="view-ops" class="view">
+      <div id="ops-body" class="ops-body"></div>
+    </section>
+  </main>
+
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>

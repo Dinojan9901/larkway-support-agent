@@ -1,0 +1,65 @@
+# Machine-readable rules extracted from 04_Product_Operations_Guide.pdf.
+doc_id: product_ops_guide
+title: Larkway Product Operations Guide
+tier: 3
+status: CURRENT
+effective: "2026-09-15"
+
+plan_capabilities:
+  section: "1. Plan capabilities"
+  bulk_upload:
+    available_on: [Scale, Enterprise]
+    max_rows_per_csv: 8000
+    quote: >-
+      Bulk Upload: Available on Scale and Enterprise. Supported file size is up to 8,000
+      rows per CSV.
+    excluded_quote: "Starter: Bulk Upload is not included."
+  shipment_status:
+    quote: >-
+      BOOKED means the shipment exists but Larkway has not yet received pickup
+      confirmation from the carrier. PICKED_UP means the carrier has confirmed pickup.
+
+# `kind` is what the engine keys on, so a new incident of the same shape needs only a
+# new entry here, not a code change:
+#   bulk_upload_degradation  a working limit below the documented one
+#   status_lag               a carrier whose BOOKED status can be stale
+known_issues:
+  - id: KI-314
+    kind: bulk_upload_degradation
+    title: Bulk Upload timeouts on large files
+    section: "KI-314 - Bulk Upload timeouts on large files"
+    opened: "2026-09-09"
+    state: Investigating
+    quote: >-
+      Some Scale and Enterprise customers see intermittent timeouts on CSV uploads above
+      roughly 2,500 rows, even though the supported limit is still 8,000 rows.
+    workaround: split the upload into files under 2,500 rows
+    # Matching signals used by the operations detector and the ticket triage tool.
+    match_any: [bulk upload, csv, bulk-upload, rows]
+    affects_plans: [Scale, Enterprise]
+    threshold_rows: 2500
+
+  - id: KI-322
+    kind: status_lag
+    title: TransVelo pickup confirmation lag
+    section: "KI-322 - TransVelo pickup confirmation lag"
+    opened: "2026-09-14"
+    state: Monitoring
+    quote: >-
+      TransVelo pickup confirmation webhooks can arrive up to 35 minutes late. A parcel
+      may already be collected while Larkway still shows BOOKED.
+    caution: >-
+      Before telling a customer a pickup did not happen, check the carrier's status or
+      wait out the known delay window.
+    match_any: [transvelo, webhook, still shows booked, pickup confirmation]
+    affects_carriers: [TransVelo]
+    delay_minutes: 35
+
+resolved_issues:
+  - id: KI-290
+    title: Label printing
+    section: "KI-290 - Label printing: Resolved 2 September 2026."
+    resolved: "2026-09-02"
+    quote: >-
+      Do not use this resolved issue to explain new incidents unless the evidence
+      specifically matches it.

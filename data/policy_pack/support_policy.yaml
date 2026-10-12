@@ -1,0 +1,80 @@
+# Machine-readable rules extracted from 01_Support_Policy_v5_CURRENT.pdf.
+#
+# Every rule carries the verbatim `quote` it came from. `scripts/verify_policy_pack.py`
+# (and tests/test_policy_pack.py) assert that each quote still appears in the text
+# extracted from the PDF, so the rules cannot silently drift from the documents.
+doc_id: support_policy_v5
+title: Larkway Support Policy v5
+tier: 2
+status: CURRENT
+effective: "2026-07-01"
+
+source_precedence:
+  section: "1. Scope and source precedence"
+  quote: >-
+    When sources disagree, apply the signed customer agreement first, then this support
+    policy and the current SOPs, then current product documentation.
+  order: [agreement, policy, product_doc, historical]
+
+historical_is_context_only:
+  section: "1. Scope and source precedence"
+  quote: >-
+    Past tickets and internal notes are background only and may record incorrect
+    advice.
+
+agreements_may_override:
+  section: "1. Scope and source precedence"
+  quote: A signed customer agreement can override these defaults.
+
+severity_definitions:
+  section: "2. Severity definitions"
+  levels:
+    P1:
+      label: Critical
+      quote: >-
+        P1 - Critical: Customers cannot create any shipments (a full production outage),
+        a confirmed security incident or suspected credential exposure, or any other
+        event causing immediate serious business risk with no workaround.
+    P2:
+      label: High
+      quote: >-
+        P2 - High: A major feature is unavailable or badly degraded for a customer, but
+        core operations can continue or a workaround exists.
+    P3:
+      label: Normal
+      quote: >-
+        P3 - Normal: A minor defect, a how-to question, a configuration request, or an
+        issue with limited operational impact.
+
+first_response_targets:
+  section: "3. Default first-response targets"
+  # The table extracts from the PDF as a single run of text; this is that run verbatim.
+  quote: >-
+    Enterprise 20 minutes, 24x7 90 minutes 1 business day Scale 1 business hour 3
+    business hours 2 business days Starter 3 business hours 1 business day 3 business
+    days
+  # ASSUMPTION: the policy distinguishes "minutes" from "business hours" deliberately,
+  # so an unqualified duration runs on the wall clock and a "business" one runs on the
+  # support calendar. Surfaced in every SLA answer that depends on it.
+  matrix:
+    Enterprise:
+      P1: {amount: 20, unit: minutes, clock: "24x7"}
+      P2: {amount: 90, unit: minutes, clock: "24x7"}
+      P3: {amount: 1, unit: business_days, clock: business}
+    Scale:
+      P1: {amount: 1, unit: business_hours, clock: business}
+      P2: {amount: 3, unit: business_hours, clock: business}
+      P3: {amount: 2, unit: business_days, clock: business}
+    Starter:
+      P1: {amount: 3, unit: business_hours, clock: business}
+      P2: {amount: 1, unit: business_days, clock: business}
+      P3: {amount: 3, unit: business_days, clock: business}
+
+escalation:
+  section: "4. Escalation"
+  p1_immediate:
+    quote: Escalate every P1 incident immediately.
+  breach_disclosure:
+    quote: >-
+      If a first-response target has already been breached, say so plainly and recommend
+      escalation instead of hiding the uncertainty.

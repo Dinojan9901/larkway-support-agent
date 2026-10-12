@@ -1,0 +1,20 @@
+# Never upload secrets or the local virtualenv.
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Not needed at runtime.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+tests/
+evals/
+scripts/
+data/runtime/
+Dockerfile
+.dockerignore
+Procfile
+render.yaml
+*.md

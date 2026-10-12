@@ -1,0 +1,86 @@
+# Per-account contract overrides, extracted from the signed agreements in the pack.
+# Tier 1 — these beat the general policy and SOP wherever they speak.
+#
+# An account with no entry here has no signed agreement, and therefore falls through
+# to the plan defaults. That fall-through is itself an answer the agent is allowed to
+# give ("standard policy applies"), not a gap.
+
+CUS-101:
+  doc_id: agreement_cus_101
+  title: Halcyon Foods Enterprise Agreement
+  customer: Halcyon Foods
+  tier: 1
+  status: ACTIVE
+  term_start: "2026-02-01"
+  term_end: "2027-01-31"
+
+  first_response_targets:
+    section: "1. Support terms"
+    quote: >-
+      For Halcyon Foods, the following first-response targets replace Larkway's standard
+      support-policy targets:
+    replaces_defaults: true
+    matrix:
+      P1: {amount: 10, unit: minutes, clock: "24x7", quote: "P1: 10 minutes, 24x7"}
+      P2: {amount: 45, unit: minutes, clock: "24x7", quote: "P2: 45 minutes"}
+      P3: {amount: 6, unit: business_hours, clock: business, quote: "P3: 6 business hours"}
+
+  cancellation:
+    section: "2. Shipment cancellation"
+    quote: >-
+      Halcyon Foods may cancel any BOOKED shipment before pickup with no cancellation
+      fee, however long ago the shipment was booked.
+    waives_booked_cancellation_fee: true
+    picked_up_quote: >-
+      Once a shipment is PICKED_UP, the standard return-to-origin process applies.
+
+  service_credit:
+    section: "3. Service credits"
+    quote: Total service credits in any calendar month are capped at INR 8,000.
+    monthly_aggregate_cap_inr: 8000
+    otherwise_use_sop: true
+    otherwise_quote: >-
+      Unless this agreement says otherwise, the current Larkway service-credit SOP
+      applies.
+
+  contacts:
+    section: "4. Account contact"
+    quote: "Dedicated CSM: Kavya Nair."
+
+CUS-102:
+  doc_id: agreement_cus_102
+  title: Brightmoor Textiles Service Agreement
+  customer: Brightmoor Textiles
+  tier: 1
+  status: ACTIVE
+  term_start: "2026-04-01"
+  term_end: "2027-03-31"
+
+  first_response_targets:
+    section: "1. Support terms"
+    replaces_defaults: true
+    matrix:
+      P1: {amount: 1, unit: business_hours, clock: business, quote: "P1: 1 business hour"}
+      P2: {amount: 2, unit: business_hours, clock: business, quote: "P2: 2 business hours"}
+      P3: {amount: 2, unit: business_days, clock: business, quote: "P3: 2 business days"}
+    no_weekend_coverage: true
+    coverage_quote: No weekend or after-hours support coverage.
+
+  cancellation:
+    section: "2. Cancellation terms"
+    quote: No special cancellation-fee waiver applies.
+    waives_booked_cancellation_fee: false
+    fallthrough_quote: Use the current Larkway Cancellation & Service Credit SOP.
+
+  service_credit:
+    section: "3. Failed-pickup credits"
+    quote: >-
+      If a pickup happens more than 3 hours after the end of the scheduled pickup window,
+      the carrier is at fault, and the customer is not at fault, Brightmoor Textiles
+      receives a fixed INR 2,000 service credit.
+    threshold_hours_past_window_end: 3
+    fixed_amount_inr: 2000
+    replaces_default_amount_and_threshold: true
+    replacement_quote: >-
+      This clause replaces the default failed-pickup credit amount and timing threshold
+      in the SOP.

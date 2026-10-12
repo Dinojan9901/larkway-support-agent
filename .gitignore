@@ -1,0 +1,18 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.DS_Store
+
+# Secrets — never commit. The template stays.
+.env
+.env.*
+!.env.example
+
+# Runtime state (mock action log). The built search index in data/index/ IS
+# committed: serverless deploys can't write it at startup.
+data/runtime/*.json
+
+# Vercel project link
+.vercel

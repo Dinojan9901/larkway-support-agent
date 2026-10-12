@@ -1,0 +1,233 @@
+# Golden scenarios.
+#
+# `offline` runs the deterministic layer directly and asserts the facts the answer
+# must rest on — no API key needed, so this is the regression gate that runs in CI.
+# `live` additionally drives the real agent and checks the prose it produces:
+# `must_mention` phrases that have to survive into the answer (a nested list means
+# any one of those phrasings), and `must_not_mention` for the ways this system is
+# most likely to be wrong in a damaging way.
+
+- id: halcyon-cancel-free
+  why: Contract must beat the SOP's INR 350 default, and a stale status must be caught.
+  user: cust-halcyon
+  question: "Can I cancel SHP-5001 without a cancellation fee? Explain why."
+  offline:
+    call: evaluate_cancellation
+    args: {order_id: SHP-5001}
+    expect:
+      outcome: cancellable_no_fee
+      facts.fee_inr: 0
+      facts.default_fee_inr: 350
+      facts.fee_waived_by_agreement: true
+    expect_citation_tier: 1
+    expect_conflict: true
+  live:
+    must_mention: ["no", "fee", "agreement"]
+    must_not_mention: ["350 cancellation fee applies", "INR 350 will be charged"]
+
+- id: brightmoor-cancel-fee
+  why: Same shape of request, opposite answer, because this contract waives nothing.
+  user: cust-brightmoor
+  question: "Can I cancel SHP-6001 for free?"
+  offline:
+    call: evaluate_cancellation
+    args: {order_id: SHP-6001}
+    expect:
+      outcome: cancellable_with_fee
+      facts.fee_inr: 350
+  live:
+    must_mention: ["350"]
+
+- id: pinecrest-cancel-inside-window
+  why: No agreement on file — the SOP default must still produce the right answer.
+  user: cust-pinecrest
+  question: "I booked SHP-7001 a few minutes ago and want to cancel it. Will I be charged?"
+  offline:
+    call: evaluate_cancellation
+    args: {order_id: SHP-7001}
+    expect:
+      outcome: cancellable_no_fee
+      facts.minutes_since_booking: 12
+  live:
+    must_mention: ["20", "no"]
+
+- id: picked-up-cannot-cancel
+  why: A terminal status must route to return-to-origin, not a fee calculation.
+  user: cust-halcyon
+  question: "Cancel SHP-5002 please."
+  offline:
+    call: evaluate_cancellation
+    args: {order_id: SHP-5002}
+    expect:
+      outcome: not_cancellable_use_rto
+  live:
+    must_mention: ["return-to-origin"]
+
+- id: credit-hypothetical-halcyon
+  why: Default SOP threshold (90 minutes) and the percentage amount.
+  user: cust-halcyon
+  question: "A pickup was two hours late and it was the carrier's fault. Do I get a service credit? The shipment fee was INR 3,600."
+  offline:
+    call: evaluate_service_credit
+    args: {account_id: CUS-101, delay_hours: 2, carrier_fault: true, customer_fault: false, shipment_fee_inr: 3600}
+    expect:
+      outcome: eligible
+      facts.credit_amount_inr: 540
+      facts.threshold_hours: 1.5
+  live:
+    must_mention: ["540"]
+
+- id: credit-hypothetical-brightmoor
+  why: Identical facts, different contract, opposite answer. The contract makes them worse off.
+  user: cust-brightmoor
+  question: "A pickup is two hours late because of carrier fault. Should I get a service credit?"
+  offline:
+    call: evaluate_service_credit
+    args: {account_id: CUS-102, delay_hours: 2, carrier_fault: true, customer_fault: false}
+    expect:
+      outcome: not_eligible
+      facts.threshold_hours: 3
+  live:
+    must_mention: [["3 hours", "three hours", "3-hour"]]
+    must_not_mention: ["you are eligible", "credit of INR 2,000 is due"]
+
+- id: credit-real-order-brightmoor
+  why: The same account's real overdue order does qualify — at an amount that needs a manager.
+  user: cust-brightmoor
+  question: "SHP-6002 was never collected. What am I owed?"
+  offline:
+    call: evaluate_service_credit
+    args: {order_id: SHP-6002}
+    expect:
+      outcome: eligible
+      facts.credit_amount_inr: 2000
+      facts.delay_hours_past_window_end: 6.0
+      requires_human_review: true
+  live:
+    must_mention: [["2,000", "2000"]]
+
+- id: credit-unknown-fault
+  why: The SOP forbids promising a credit while fault is unknown. Must not guess.
+  user: cust-pinecrest
+  question: "My pickup was five hours late. Do I get a credit?"
+  offline:
+    call: evaluate_service_credit
+    args: {account_id: CUS-103, delay_hours: 5}
+    expect:
+      outcome: undetermined
+      confidence: low
+      requires_human_review: true
+  live:
+    must_not_mention: ["you will receive", "a credit of INR"]
+
+- id: sla-agreement-breached
+  why: Agreement target (10 min) beats the Enterprise default (20 min), and it is breached.
+  user: staff-meera
+  question: "Has CASE-301 breached its SLA? Against which target?"
+  offline:
+    call: resolve_support_sla
+    args: {ticket_id: CASE-301}
+    expect:
+      outcome: breached
+      facts.target: "10 minutes, 24x7"
+      requires_human_review: true
+  live:
+    must_mention: ["10", "breach"]
+    must_not_mention: ["45 minutes", "within target"]
+
+- id: sla-plan-default-breached
+  why: No agreement on file, so the plan default governs — and is badly breached.
+  user: staff-meera
+  question: "What's the SLA position on CASE-305?"
+  offline:
+    call: resolve_support_sla
+    args: {ticket_id: CASE-305}
+    expect:
+      outcome: breached
+      facts.target: "20 minutes, 24x7"
+      facts.target_source: plan default
+  live:
+    must_mention: ["20", "breach"]
+
+- id: sla-business-hours-over-the-weekend
+  why: >-
+    Opened Friday 16:30; the snapshot is Saturday 14:00. Only 90 business minutes have
+    run, so the ticket is at risk, not breached — a wall-clock calculation would say
+    it blew its 2-hour target nearly a day ago.
+  user: staff-meera
+  question: "Is CASE-302 within SLA?"
+  offline:
+    call: resolve_support_sla
+    args: {ticket_id: CASE-302}
+    expect:
+      outcome: at_risk
+      facts.elapsed_minutes: 90
+  live:
+    must_mention: ["business hours"]
+    must_not_mention: ["has been breached", "is breached", "breached by"]
+
+- id: bulk-upload-limit
+  why: >-
+    The documented limit (8,000) and what currently works (~2,500) are different
+    things, and the earlier answer to this customer conflated them.
+  user: cust-brightmoor
+  question: "What's the row limit for bulk upload? Our 3,100-row file keeps timing out."
+  offline:
+    call: check_plan_capability
+    args: {account_id: CUS-102, capability: bulk_upload}
+    expect:
+      outcome: available
+      facts.documented_max_rows: 8000
+      facts.known_issue: KI-314
+    expect_conflict: true
+  live:
+    must_mention: ["8,000", "2,500", "KI-314"]
+    must_not_mention: ["your plan only supports 2,500"]
+
+- id: starter-plan-no-bulk-upload
+  why: A capability the plan does not include should be a clean no, not a limit.
+  user: cust-pinecrest
+  question: "How do I use bulk upload?"
+  offline:
+    call: check_plan_capability
+    args: {account_id: CUS-103, capability: bulk_upload}
+    expect:
+      outcome: not_available
+  live:
+    must_mention: [["not included", "isn't part of", "is not part of", "not available on", "isn't available on", "does not include", "doesn't include"]]
+
+- id: cross-account-denied
+  why: Access control must hold in the tool layer, not just in the prompt.
+  user: cust-halcyon
+  question: "Show me the orders for Orbitron Medical."
+  offline:
+    call: lookup_records
+    args: {entity: orders, filters: {account_id: CUS-104}}
+    expect_error: access_denied
+  live:
+    must_not_mention: ["SHP-8001", "SHP-8002", "Orbitron order"]
+    refusal_without_tool_ok: true
+
+- id: internal-tool-denied-to-customer
+  why: The operations sweep is staff-only and must be refused at the tool layer.
+  user: cust-orbitron
+  question: "What issues are affecting other customers right now?"
+  offline:
+    call: detect_operations_signals
+    args: {}
+    expect_error: staff
+  live:
+    must_not_mention: ["Halcyon", "Brightmoor"]
+    refusal_without_tool_ok: true
+
+- id: ops-sweep-finds-everything
+  why: The proactive view must find breaches, clusters, owed credits and bad past advice.
+  user: staff-kavya
+  question: "What needs my attention right now?"
+  offline:
+    call: detect_operations_signals
+    args: {}
+    expect_signal_categories: [sla, incorrect_past_guidance, unclaimed_entitlement, known_issue, cross_account_impact]
+    expect_min_signals: 12
+  live:
+    must_mention: ["CASE-301", "CASE-305"]

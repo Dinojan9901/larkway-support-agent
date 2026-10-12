@@ -1,0 +1,67 @@
+# Machine-readable rules extracted from 03_Cancellation_and_Service_Credit_SOP_v3.pdf.
+doc_id: cancellation_credit_sop_v3
+title: Larkway Cancellation & Service Credit SOP v3
+tier: 2
+status: CURRENT
+effective: "2026-08-01"
+
+cancellation:
+  section: "1. Order cancellation"
+  by_status:
+    DRAFT:
+      cancellable: true
+      fee_inr: 0
+      quote: "DRAFT: Can be cancelled at no charge."
+    BOOKED:
+      cancellable: true
+      free_window_minutes_from_booking: 20
+      fee_after_window_inr: 350
+      waivable_by_agreement: true
+      quote: >-
+        BOOKED, not yet PICKED_UP: Can be cancelled. No fee within 20 minutes of
+        booking. After 20 minutes, charge INR 350 unless a customer agreement explicitly
+        waives the cancellation fee.
+    PICKED_UP:
+      cancellable: false
+      alternative: return_to_origin
+      quote: >-
+        PICKED_UP: Do not cancel. Start the return-to-origin workflow if the customer
+        wants the parcel back.
+    DELIVERED:
+      cancellable: false
+      quote: "DELIVERED: Cannot be cancelled."
+
+service_credit:
+  section: "2. Failed-pickup service credits"
+  quote: >-
+    Under the default policy, a customer qualifies for a service credit when pickup
+    happens more than 90 minutes after the end of the scheduled pickup window, the
+    carrier is at fault, and the customer caused no part of the delay. The default
+    credit is the lower of INR 600 or 15% of the shipment fee.
+  default_threshold_hours_past_window_end: 1.5
+  requires_carrier_fault: true
+  requires_no_customer_fault: true
+  amount:
+    rule: min_of_flat_and_percent
+    flat_inr: 600
+    percent_of_shipment_fee: 15
+  overridable_by_agreement:
+    quote: >-
+      A signed customer agreement may replace the default delay threshold, credit
+      amount, or cap.
+
+approval:
+  section: "3. Approval and uncertainty"
+  manager_approval_above_inr: 1500
+  quote: Any single credit above INR 1,500 needs manager approval.
+
+uncertainty:
+  section: "3. Approval and uncertainty"
+  no_promise_when_unknown:
+    quote: >-
+      Do not promise a credit while carrier fault, pickup timing, or customer fault is
+      unknown.
+  conflict_handling:
+    quote: >-
+      When records conflict, name the conflict and get verification before any
+      state-changing action.
