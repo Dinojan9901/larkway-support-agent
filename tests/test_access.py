@@ -103,3 +103,30 @@ def test_customer_cannot_evaluate_another_accounts_order():
 def test_manager_has_the_approval_capability_and_the_agent_does_not():
     assert MANAGER.can("approve_high_value_credit")
     assert not AGENT.can("approve_high_value_credit")
+
+
+# ------------------------------------------- list-valued account filter
+# The lookup tool documents "a list of values matches any of them", and Gemini
+# sends account_id as a list. That used to crash the turn for every role.
+def test_customer_may_pass_their_own_account_as_a_list():
+    ids = {r["order_id"] for r in query(HALCYON, "orders", {"account_id": ["CUS-101"]})}
+    assert ids == {"SHP-5001", "SHP-5002"}
+
+
+def test_a_foreign_account_hidden_in_a_list_denies_the_whole_request():
+    with pytest.raises(AccessDenied):
+        query(HALCYON, "orders", {"account_id": ["CUS-101", "CUS-104"]})
+
+
+def test_staff_can_filter_by_several_accounts():
+    rows = query(AGENT, "orders", {"account_id": ["CUS-101", "CUS-104"]})
+    assert {r["account_id"] for r in rows} == {"CUS-101", "CUS-104"}
+
+
+def test_list_valued_account_filter_is_a_tool_result_not_a_crash():
+    """The exact call that crashed the Gemini eval run."""
+    ctx = ToolContext(get_principal("cust-pinecrest"))
+    result, is_error = run_tool(
+        ctx, "lookup_records", {"entity": "orders", "filters": {"account_id": ["CUS-103"]}}
+    )
+    assert not is_error and result["count"] == 1

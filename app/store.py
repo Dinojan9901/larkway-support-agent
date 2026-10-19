@@ -130,6 +130,14 @@ def _eq(actual: Any, wanted: Any) -> bool:
     return actual == wanted
 
 
+def _account_ids(value: Any) -> list[str]:
+    """Normalise an account_id filter (None, one id, or a list of ids) to a list."""
+    if value is None:
+        return []
+    values = value if isinstance(value, (list, tuple, set)) else [value]
+    return [str(v).strip() for v in values if v is not None and str(v).strip()]
+
+
 def query(
     principal: Principal,
     entity: str,
@@ -141,10 +149,18 @@ def query(
     rows = data.table(entity)
     filters = dict(filters or {})
 
-    requested_account = filters.pop("account_id", None)
-    scoped_account = principal.scope_account(requested_account)
-    if scoped_account:
-        rows = [r for r in rows if str(r.get("account_id", "")).upper() == scoped_account.upper()]
+    # The lookup tool tells the model "a list of values matches any of them", so
+    # account_id can arrive as one id or several. Every requested id goes through
+    # the principal's scope check: one foreign account anywhere in the list denies
+    # the whole request, rather than being silently dropped.
+    requested = _account_ids(filters.pop("account_id", None))
+    allowed = {
+        account.upper()
+        for account in (principal.scope_account(a) for a in (requested or [None]))
+        if account
+    }
+    if allowed:
+        rows = [r for r in rows if str(r.get("account_id", "")).upper() in allowed]
 
     rows = [r for r in rows if _matches(r, filters)]
     return [principal.redact(entity, r) for r in rows[:limit]]

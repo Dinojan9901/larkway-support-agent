@@ -194,6 +194,19 @@ def _openai_client():
     )
 
 
+# Groq validates the model's tool calls against the schema server-side and rejects
+# the whole response (400, code "tool_use_failed") when one doesn't fit — e.g.
+# `"account_id": null` for an optional string. The generation is random, so asking
+# again almost always produces a valid call.
+MALFORMED_TOOL_CALL_RETRIES = 2
+
+
+def _malformed_tool_call(exc: Exception) -> bool:
+    return getattr(exc, "status_code", None) == 400 and (
+        getattr(exc, "code", None) == "tool_use_failed" or "tool_use_failed" in str(exc)
+    )
+
+
 def compat_tool(spec: dict[str, Any]) -> tuple[dict[str, Any], set[str]]:
     """Translate an Anthropic tool spec into an OpenAI function definition.
 
@@ -263,25 +276,31 @@ class OpenAICompatBackend:
         # a request is over its per-minute size (413), the next model usually still
         # has room. History is plain OpenAI format, so any model can pick it up.
         models = [MODEL, *COMPAT_FALLBACK_MODELS]
+        response = None
         for attempt, model in enumerate(models):
-            try:
-                response = client.chat.completions.create(
-                    model=model,
-                    max_tokens=MAX_TOKENS,
-                    messages=[{"role": "system", "content": self.system}, *self.messages],
-                    tools=[d for d, _ in converted],
-                )
+            for retry in range(MALFORMED_TOOL_CALL_RETRIES + 1):
+                try:
+                    response = client.chat.completions.create(
+                        model=model,
+                        max_tokens=MAX_TOKENS,
+                        messages=[{"role": "system", "content": self.system}, *self.messages],
+                        tools=[d for d, _ in converted],
+                    )
+                    break
+                except openai.APIStatusError as exc:
+                    if _malformed_tool_call(exc) and retry < MALFORMED_TOOL_CALL_RETRIES:
+                        continue
+                    if exc.status_code in (413, 429) and attempt + 1 < len(models):
+                        break
+                    raise ModelError(
+                        f"Model request failed ({exc.status_code}): {exc.message}"
+                    ) from exc
+                except openai.APIConnectionError as exc:
+                    raise ModelError(
+                        f"Could not reach the model endpoint {COMPAT_BASE_URL}: {exc}"
+                    ) from exc
+            if response is not None:
                 break
-            except openai.APIStatusError as exc:
-                if exc.status_code in (413, 429) and attempt + 1 < len(models):
-                    continue
-                raise ModelError(
-                    f"Model request failed ({exc.status_code}): {exc.message}"
-                ) from exc
-            except openai.APIConnectionError as exc:
-                raise ModelError(
-                    f"Could not reach the model endpoint {COMPAT_BASE_URL}: {exc}"
-                ) from exc
 
         if not response.choices:
             raise ModelError("The model returned an empty response. Try rephrasing.")

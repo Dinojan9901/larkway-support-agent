@@ -241,3 +241,56 @@ def test_without_a_fallback_the_rate_limit_is_reported(monkeypatch):
 
     events = list(convo.run("hi"))
     assert events[-1]["type"] == "error" and "429" in events[-1]["message"]
+
+
+class RejectsToolCalls(FakeOpenAI):
+    """Groq-style server-side tool-call validation: the first N requests are refused."""
+
+    def __init__(self, script, failures: int, code: str = "tool_use_failed"):
+        super().__init__(script)
+        self.failures = failures
+        self.code = code
+        self.attempts = 0
+
+    def create(self, **kwargs):
+        import openai
+
+        self.attempts += 1
+        if self.attempts <= self.failures:
+            request = httpx2.Request("POST", "https://api.example/v1/chat/completions")
+            raise openai.BadRequestError(
+                "Tool call validation failed: /account_id: expected string, but got null",
+                response=httpx2.Response(400, request=request),
+                body={"message": "Tool call validation failed", "code": self.code},
+            )
+        return super().create(**kwargs)
+
+
+def _compat_convo(monkeypatch, client):
+    monkeypatch.setattr(providers, "_openai_client", lambda: client)
+    monkeypatch.setattr(providers, "COMPAT_FALLBACK_MODELS", [])
+    convo = agent_loop.Conversation(get_principal("staff-kavya"))
+    convo.backend = providers.OpenAICompatBackend(convo.system)
+    return convo
+
+
+def test_a_rejected_tool_call_is_retried(monkeypatch):
+    """Seen live on Groq: `"account_id": null` failed server-side validation."""
+    client = RejectsToolCalls([_completion({"content": "All clear."}, "stop")], failures=1)
+    events = list(_compat_convo(monkeypatch, client).run("What needs my attention?"))
+    assert "error" not in [e["type"] for e in events]
+    assert client.attempts == 2
+
+
+def test_a_tool_call_that_keeps_failing_validation_gives_up(monkeypatch):
+    client = RejectsToolCalls([], failures=99)
+    events = list(_compat_convo(monkeypatch, client).run("What needs my attention?"))
+    assert events[-1]["type"] == "error" and "400" in events[-1]["message"]
+    assert client.attempts == 1 + providers.MALFORMED_TOOL_CALL_RETRIES
+
+
+def test_other_bad_requests_are_not_retried(monkeypatch):
+    client = RejectsToolCalls([], failures=99, code="invalid_api_key")
+    events = list(_compat_convo(monkeypatch, client).run("hi"))
+    assert events[-1]["type"] == "error"
+    assert client.attempts == 1

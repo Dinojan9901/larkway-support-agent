@@ -61,13 +61,29 @@ Open <http://localhost:8000>.
 | Provider | Cost | Settings in `.env` |
 |---|---|---|
 | **Groq** | Free tier | `PP_PROVIDER=openai_compat`, `PP_BASE_URL=https://api.groq.com/openai/v1`, `PP_API_KEY`, `PP_MODEL=openai/gpt-oss-120b` |
-| **Gemini** (Google AI Studio) | Free tier | `PP_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, a Gemini key, `PP_MODEL=gemini-3.8-flash` |
+| **Gemini** (Google AI Studio) | Free tier | `PP_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/`, a Gemini key, `PP_MODEL=gemini-3.5-flash-lite` |
 | **Ollama** | Free, local | `PP_BASE_URL=http://localhost:11434/v1`, no key |
 | **Claude** | Paid API | `PP_PROVIDER=anthropic`, `ANTHROPIC_API_KEY` |
 
 `.env.example` has each block ready to uncomment. Swapping the model changes nothing
 that matters for trust: the numbers come from the policy engine, scope comes from the
 server session, and confirmation needs a click.
+
+### Tested providers
+
+The 16 golden scenarios run live (`python -m evals.run --live`), with no fallback
+models, so each row is one model's own result.
+
+| Provider | Model | Date | Scenarios passed | The misses |
+|---|---|---|---|---|
+| Gemini (AI Studio, free tier) | `gemini-3.5-flash-lite` | 2026-10-19 | **16 / 16** | — |
+| Groq (free tier) | `openai/gpt-oss-120b` | 2026-10-19 | **14 / 16** | `credit-unknown-fault`: asked for the order and who was at fault instead of calling a tool — right behaviour, but the scenario requires a tool call. `ops-sweep-finds-everything`: Groq rejected a tool call with `"account_id": null` (server-side schema check); such rejections are now retried — covered by tests, not yet re-run live because the daily token cap ran out. |
+| Gemini (AI Studio, free tier) | `gemini-3.5-flash` | 2026-10-19 | 6 / 6 run, 10 not run | Free tier allows 20 requests per model per day; the cap ran out mid-run. |
+
+Gemini-specific handling confirmed live: free-form tool arguments travel as JSON
+strings, and thought signatures are echoed back across multi-step tool turns. Free-tier
+Gemini models can be briefly unavailable under load (`503 high demand`) — on the test
+day `gemini-3.8-flash` was.
 
 ### Without a model
 
@@ -130,7 +146,7 @@ a manager's approval). Also available as the **Operations signals** tab.
 ## Verify the claims
 
 ```bash
-pytest -q                          # 71 tests, no API key needed
+pytest -q                          # 82 tests, no API key needed
 python -m evals.run                # 16 golden scenarios, offline
 python -m evals.run --live         # also drives the real agent and checks its prose
 python scripts/verify_policy_pack.py
