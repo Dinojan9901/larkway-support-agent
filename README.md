@@ -104,6 +104,57 @@ Set `PP_PROVIDER`, `PP_BASE_URL`, `PP_MODEL`, `PP_FALLBACK_MODELS` and `PP_API_K
 environment variables in the Vercel project. Conversations and pending actions live in memory, so a cold start
 begins a fresh session — fine for a demo; a real deployment would put them in Redis.
 
+### Using the tools from Claude Code (MCP)
+
+`app/mcp_server.py` exposes the agent's tools over the Model Context Protocol (stdio
+transport), so an MCP client such as Claude Code can call them directly. It is a thin
+adapter over the same tool layer the chat agent uses, so every guarantee carries over:
+
+- **Identity is set when the server starts**, from `LARKWAY_MCP_USER` — never from a
+  tool argument. The default is `cust-halcyon`, a **customer**: one account, internal
+  columns stripped, no operations sweep. Staff access is an explicit opt-in
+  (`staff-meera` or `staff-kavya`).
+- **Scope is enforced in the data layer**, exactly as in the web app; another account's
+  records come back as an `access_denied` tool error.
+- **Nothing executes.** `propose_action` only records a pending proposal, and
+  `execute_confirmed_action` is not exposed: confirming needs a person's click in the
+  web app.
+
+Run it directly (it speaks MCP on stdin/stdout, so it waits silently for a client):
+
+```bash
+python -m app.mcp_server
+```
+
+Register it in Claude Code, using the project's virtualenv Python and the launcher in
+`scripts/`, which works from any directory. Replace `<repo>` with the absolute path of
+your clone (e.g. `E:/CalQuity/parcelpilot-agent`); on macOS/Linux the Python is
+`<repo>/.venv/bin/python`.
+
+```bash
+claude mcp add --transport stdio larkway -- <repo>/.venv/Scripts/python.exe <repo>/scripts/mcp_server.py
+
+# Or as staff. Keep another option between --env and the name, or the CLI reads the
+# name as a second KEY=value pair.
+claude mcp add --env LARKWAY_MCP_USER=staff-meera --transport stdio larkway-staff -- <repo>/.venv/Scripts/python.exe <repo>/scripts/mcp_server.py
+```
+
+Check it with `claude mcp list` (look for `✔ Connected`) or `/mcp` inside Claude Code.
+
+**Example.** Ask Claude Code *"Using the larkway tools, can SHP-5001 be cancelled without
+a fee?"* It calls `evaluate_cancellation` with `{"order_id": "SHP-5001"}` and gets the
+policy engine's decision back (abridged):
+
+```json
+{
+  "outcome": "cancellable_no_fee",
+  "summary": "SHP-5001 can be cancelled with no cancellation fee — the Halcyon Foods Enterprise Agreement waives it.",
+  "facts": { "fee_inr": 0, "default_fee_inr": 350, "fee_waived_by_agreement": true },
+  "requires_human_review": true,
+  "caveats": ["KI-322: TransVelo pickup webhooks can lag by up to 35 minutes, and this order is already inside its pickup window. BOOKED may be stale — …"]
+}
+```
+
 ---
 
 ## Try it
@@ -146,7 +197,7 @@ a manager's approval). Also available as the **Operations signals** tab.
 ## Verify the claims
 
 ```bash
-pytest -q                          # 82 tests, no API key needed
+pytest -q                          # 93 tests, no API key needed
 python -m evals.run                # 16 golden scenarios, offline
 python -m evals.run --live         # also drives the real agent and checks its prose
 python scripts/verify_policy_pack.py
@@ -205,6 +256,7 @@ app/
   agent/loop.py        agent loop
   agent/prompts.py     system prompts
   main.py              FastAPI app
+  mcp_server.py        the same tools over MCP (stdio)
   web/                 chat UI
 api/index.py           Vercel entry point
 data/
@@ -213,6 +265,7 @@ data/
   larkway_dataset.xlsx accounts, orders, tickets
 scripts/
   generate_dataset.py  regenerates the fictional dataset
+  mcp_server.py        MCP launcher that works from any directory
 evals/  tests/
 ```
 

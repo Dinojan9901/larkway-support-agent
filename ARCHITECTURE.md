@@ -18,7 +18,7 @@ That produces one structural decision from which most of the rest follows:
 Claude orchestrates — reads the request, chooses tools, chains them, writes the reply.
 It never computes a fee, a credit, or an SLA deadline. Those come from a policy engine
 that returns a decision with its own reasoning trace and citations, and that can be
-unit-tested with no API key. `pytest -q` is the proof: 82 tests pin the numbers this
+unit-tested with no API key. `pytest -q` is the proof: 93 tests pin the numbers this
 product is judged on.
 
 ---

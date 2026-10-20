@@ -1,5 +1,6 @@
 anthropic>=0.116.0
 openai>=1.40.0
+mcp>=2.3,<3
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0

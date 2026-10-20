@@ -469,7 +469,7 @@ TOOLS: list[Tool] = [
         label="Calculating cancellation eligibility and fee",
         description=(
             "Decide whether a specific order can be cancelled and what fee applies. "
-            "Applies the SOP's status rules and the 30-minute free window, then lets any "
+            "Applies the SOP's status rules and its free-cancellation window, then lets any "
             "signed agreement override the fee, and flags when a status may be stale "
             "because of a known carrier webhook delay. Returns the full reasoning trace "
             "and citations. Always use this rather than working the fee out yourself."
