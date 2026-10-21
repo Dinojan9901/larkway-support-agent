@@ -76,8 +76,8 @@ models, so each row is one model's own result.
 
 | Provider | Model | Date | Scenarios passed | The misses |
 |---|---|---|---|---|
-| Gemini (AI Studio, free tier) | `gemini-3.5-flash-lite` | 2026-10-19 | **16 / 16** | — |
-| Groq (free tier) | `openai/gpt-oss-120b` | 2026-10-19 | **14 / 16** | `credit-unknown-fault`: asked for the order and who was at fault instead of calling a tool — right behaviour, but the scenario requires a tool call. `ops-sweep-finds-everything`: Groq rejected a tool call with `"account_id": null` (server-side schema check); such rejections are now retried — covered by tests, not yet re-run live because the daily token cap ran out. |
+| Groq (free tier) | `openai/gpt-oss-120b` | 2026-10-21 | **16 / 16** | — |
+| Gemini (AI Studio, free tier) | `gemini-3.5-flash-lite` | 2026-10-21 | **16 / 16** | — (one scenario re-run after the free tier's 15-requests-per-minute limit) |
 | Gemini (AI Studio, free tier) | `gemini-3.5-flash` | 2026-10-19 | 6 / 6 run, 10 not run | Free tier allows 20 requests per model per day; the cap ran out mid-run. |
 
 Gemini-specific handling confirmed live: free-form tool arguments travel as JSON
@@ -197,7 +197,7 @@ a manager's approval). Also available as the **Operations signals** tab.
 ## Verify the claims
 
 ```bash
-pytest -q                          # 93 tests, no API key needed
+pytest -q                          # 94 tests, no API key needed
 python -m evals.run                # 16 golden scenarios, offline
 python -m evals.run --live         # also drives the real agent and checks its prose
 python scripts/verify_policy_pack.py
@@ -298,7 +298,7 @@ python -m app.ingest && python scripts/verify_policy_pack.py
 | `ANTHROPIC_API_KEY` | — | Claude only. |
 | `PP_BASE_URL` / `PP_API_KEY` | — | `openai_compat` only. Ollama needs no key. |
 | `PP_MODEL` | `claude-opus-5` / `gemini-3.8-flash` | Default depends on the provider. |
-| `PP_FALLBACK_MODELS` | — | `openai_compat` only. Comma-separated models tried when the main one is rate-limited — free tiers cap tokens per model, so this keeps a demo answering. |
+| `PP_FALLBACK_MODELS` | — | `openai_compat` only. Comma-separated models tried when the main one is rate-limited — free tiers cap tokens per model, so this keeps a demo answering. A fallback answers real users too, so list only models that pass the live evals: `gpt-oss-20b` was dropped after it answered a credit question from the SOP and missed the customer's contract threshold. |
 | `PP_EFFORT` | `high` | Claude only. `low`…`max`. |
 | `PP_MAX_TOKENS` | `8000` | |
 | `PP_MAX_AGENT_STEPS` | `10` | Safety stop on runaway tool loops. |

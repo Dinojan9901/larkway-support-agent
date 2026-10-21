@@ -19,3 +19,13 @@ def test_every_role_is_told_to_name_known_issues_by_id():
     for principal in DEMO_PRINCIPALS.values():
         prompt = build_system_prompt(principal)
         assert "known issue" in prompt and "by its ID" in prompt
+
+
+def test_every_role_is_told_to_evaluate_a_described_situation_first():
+    """gpt-oss-120b kept asking for an order id instead of using the hypothetical path."""
+    for principal in DEMO_PRINCIPALS.values():
+        prompt = " ".join(build_system_prompt(principal).split())  # ignore line wrapping
+        assert "evaluate it as described" in prompt
+        assert "Call it even when some facts are unknown" in prompt
+        # ...without discarding what the customer did say (a live regression).
+        assert "Pass every fact the customer stated or clearly implied" in prompt

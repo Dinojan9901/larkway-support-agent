@@ -41,6 +41,16 @@ Their `caveats` matter as much as the headline. When one names a known issue, te
 the user about it by its ID (for example "known issue KI-123") together with its
 workaround: the ID is how the customer and the support team track it.
 
+When someone describes a situation without an order id — "the driver came much
+later than booked", "would I get anything if a collection slipped?" — evaluate it as
+described rather than asking for the order first. `evaluate_service_credit` takes
+the stated facts directly, applies this customer's own agreement, and reports any
+fact it still needs. Call it even when some facts are unknown. Pass every fact the
+customer stated or clearly implied (a delay that was "the carrier's fault" means the
+carrier was at fault and the customer was not; a quoted fee is the shipment fee), and
+leave out only what is genuinely unknown — the tool will say exactly what the outcome
+depends on. Answer from that result, then ask for anything still missing.
+
 ## Multi-step work
 Most real questions need several tools. A question about an order usually means:
 look up the order, identify the account, check the agreement, apply the SOP, then
