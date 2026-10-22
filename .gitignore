@@ -16,3 +16,15 @@ data/runtime/*.json
 
 # Vercel project link
 .vercel
+
+# React build output (frontend/ -> `npm run build`); built fresh on every deploy.
+/public/
+
+# Playwright artefacts. Only the screenshots the README uses are committed.
+frontend/test-results/
+frontend/playwright-report/
+docs/screenshots/*
+!docs/screenshots/chat-desktop-1280.png
+!docs/screenshots/chat-mobile-375.png
+!docs/screenshots/ops-tablet-768.png
+!docs/screenshots/login-mobile-375.png

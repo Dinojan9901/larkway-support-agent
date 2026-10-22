@@ -133,11 +133,10 @@ built first out of habit, and at 27 sections it would buy nothing.
 - **A vector database.** 27 sections. Embeddings would have added a dependency, a build
   step and a silent failure mode in exchange for no measurable gain. The `SectionIndex`
   interface is the seam to swap behind when the corpus justifies it.
-- **Real authentication.** Six demo principals with a
-  role/capability model that a real IdP drops into; the enforcement points do not move.
-- **A frontend framework.** One deployable, no build step, full control over the
-  streaming tool trace. This is not a React exercise, and a build step is one more thing
-  to break in review.
+- **A real identity provider.** Login is a JWT password flow over two demo users (one
+  customer, one ops), with scrypt-hashed passwords and roles enforced server-side. A
+  real IdP (OIDC, SSO) would replace the user registry in `app/auth.py`; the token
+  check, the role dependencies and the data-layer scoping would not move.
 - **Multi-turn conversation persistence.** Sessions are in-memory and single-instance —
   correct for a demo, wrong for production, and a swap rather than a redesign.
 - **Automated rule extraction from the PDFs.** I chose a curated policy pack with a

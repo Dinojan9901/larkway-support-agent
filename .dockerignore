@@ -6,3 +6,6 @@ __pycache__/
 data/index/
 data/runtime/*.json
 .pytest_cache/
+
+frontend/node_modules/
+public/

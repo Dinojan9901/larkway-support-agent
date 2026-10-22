@@ -18,7 +18,7 @@ That produces one structural decision from which most of the rest follows:
 Claude orchestrates — reads the request, chooses tools, chains them, writes the reply.
 It never computes a fee, a credit, or an SLA deadline. Those come from a policy engine
 that returns a decision with its own reasoning trace and citations, and that can be
-unit-tested with no API key. `pytest -q` is the proof: 94 tests pin the numbers this
+unit-tested with no API key. `pytest -q` is the proof: 113 tests pin the numbers this
 product is judged on.
 
 ---
@@ -26,9 +26,9 @@ product is judged on.
 ## Layers
 
 ```
-                    Browser — chat, live tool trace, trust panel, ops dashboard
-                       │ SSE
-                    FastAPI
+      React + TypeScript (Vite) — chat, live tool trace, trust panel, ops console
+                       │ typed client: JSON + SSE, Authorization: Bearer <JWT>
+                    FastAPI ── JWT auth, role checks, audit log (background task)
         ┌──────────────┴───────────────────────────────┐
         │                                              │
    Agent loop                                  POST /api/actions/{id}/confirm
@@ -47,6 +47,45 @@ product is judged on.
                        │ verified against
    Source PDFs / workbook
 ```
+
+---
+
+## Frontend and authentication
+
+**React talks to FastAPI through one typed client** (`frontend/src/api/`). The response
+shapes live in `types.ts`, so a backend change shows up as a type error rather than a
+blank screen. Chat streams as server-sent events over a `POST` with the bearer token;
+an incremental parser buffers across network chunks and skips a malformed event
+instead of failing the answer. Model text is rendered as React text nodes through a
+small markdown subset, never as HTML.
+
+**Login is the OAuth2 password flow** (`app/auth.py`): form-encoded credentials in, a
+30-minute HS256 JWT out. Passwords are stored only as salted scrypt hashes and compared
+in constant time; an unknown username costs the same as a wrong password. The token
+names a user, and **the server maps that user to a Principal from its own registry** —
+a token claiming a different principal is refused — so every guarantee below still keys
+off a server-side identity. The signing secret comes from `LARKWAY_JWT_SECRET`; on
+Vercel, a missing secret makes login refuse rather than sign with a per-instance
+secret that would log people out between instances.
+
+**Roles are enforced in the backend.** `require_ops` guards the operations dashboard
+(403 for customers), every other endpoint takes the principal from the token, and the
+data layer still scopes every read. The UI hiding the ops tab is a convenience, not the
+control. The old pattern — trusting a `user_id` in the request body — is gone.
+
+**The confirmation gate is unchanged**: the card in the UI calls
+`POST /api/actions/{id}/confirm` on an explicit click, and the action store refuses
+execution without that confirmation, for the right owner, exactly once.
+
+**Finished conversations are logged in a background task.** After the streamed answer
+is sent, FastAPI's `BackgroundTasks` appends one JSON line per turn to the audit log —
+who asked what, which tools ran, how it ended, how long it took, and never the token —
+so a slow disk can't delay an answer.
+
+**Accessibility and layout are checked in a real browser**, not just asserted:
+Playwright runs axe (WCAG 2.1 A/AA) on every screen at 375, 768 and 1280px, checks there
+is no horizontal scrolling, and walks the keyboard paths (skip link, tab arrows, the
+mobile drawer's Escape and focus return, focus moving to an action's result).
 
 ---
 
@@ -276,7 +315,7 @@ rows when that is really bug KI-314** (CASE-251). Nobody filed a complaint about
 | BM25 + authority re-rank | Vector DB / embeddings | 27 sections. Embeddings add dependencies and a failure mode for no measurable gain. Swappable behind `SectionIndex`. |
 | Manual agent loop | SDK tool runner | Server-side principal injection, live tool events, clean stop on pending confirmation. |
 | Confirmation gated by an HTTP endpoint | Model-side confirmation tool | A model-settable flag is not a gate. A click is. |
-| Vanilla JS + FastAPI static | React / Next.js | One deployable, no build step, full control of the SSE trace. Not a UI-framework exercise. |
+| React + Vite SPA, built to static files | Next.js / server rendering | One small client served from Vercel's CDN, a typed client over the existing API, no second server runtime. The pages are behind a login, so server rendering buys nothing. |
 | In-memory sessions | Redis / Postgres | Correct for a single-instance demo; swap for horizontal scale. |
 | Both user contexts, one codebase | Pick one | The interesting behaviours — redaction, scoping, tool visibility — only show up in contrast. |
 

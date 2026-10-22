@@ -1,7 +1,11 @@
 # Larkway Support Agent
 
 **Live demo: [larkway-support-agent.vercel.app](https://larkway-support-agent.vercel.app)** —
-pick a customer or staff user from the sidebar and ask away. No sign-up needed.
+sign in with one of the [demo logins](#demo-logins-for-reviewers) and ask away.
+
+**Stack:** React + TypeScript (Vite) frontend · FastAPI backend with JWT auth and
+role checks · deterministic policy engine · Claude or any OpenAI-compatible model ·
+deployed on Vercel.
 
 An AI support agent for **Larkway**, a fictional B2B shipping platform. One codebase
 serves two user contexts:
@@ -18,6 +22,26 @@ whose recorded answers are simply wrong. The design premise is that **a support 
 hardest job is not retrieval, it is deciding which source wins** — so that is where most
 of the engineering went.
 
+### Demo logins (for reviewers)
+
+| Role | Username | Password | Sees |
+|---|---|---|---|
+| Customer | `customer` | `larkway-customer-demo` | Halcyon Foods' own account, chat only |
+| Ops | `ops` | `larkway-ops-demo` | every account, plus the operations console |
+
+These are public demo credentials for a fictional dataset. Only their scrypt hashes are
+in the code, and a session token lasts 30 minutes.
+
+### Screenshots
+
+| Customer chat (desktop) | Customer chat (mobile, 375px) |
+|---|---|
+| ![Chat answer with tool trace, confirmation card and trust panel](docs/screenshots/chat-desktop-1280.png) | ![The same answer on a phone](docs/screenshots/chat-mobile-375.png) |
+
+| Operations console (tablet, 768px) | Sign in (mobile) |
+|---|---|
+| ![Operations signals: breached P1s, a cross-account cluster, past advice that was wrong](docs/screenshots/ops-tablet-768.png) | ![Sign-in form with a validation error](docs/screenshots/login-mobile-375.png) |
+
 ---
 
 ## What it does that a thin RAG wrapper does not
@@ -27,7 +51,7 @@ of the engineering went.
 | **The model never does the money maths** | Fees, credits and SLA deadlines are computed by a deterministic policy engine against rules extracted from the documents. Same question, same answer, every time — and unit-testable without an API key. |
 | **The rules cannot drift from the documents** | Every rule in the policy pack carries the verbatim clause it came from, and a verifier re-reads the PDFs and asserts each quote is still there. It runs on startup and in the tests. |
 | **Retrieval ranks on authority, not just similarity** | Signed agreement > current policy/SOP > product docs > historical tickets. Deprecated documents are excluded from answers and reported separately so a conflict can be *named*. |
-| **Access control is in the data layer** | The principal comes from the server session, never from a tool argument. A customer session cannot read another account's rows, columns, or contract — proven by tests, not by prompt instructions. |
+| **Access control is in the data layer** | Identity comes from a short-lived JWT (OAuth2 password flow, scrypt-hashed passwords), never from a tool argument or the request body. A customer cannot read another account's rows, columns, or contract, and the ops console checks the role in FastAPI — proven by tests, not by prompt instructions or a hidden button. |
 | **Confirmation is unforgeable** | The confirm flag can only be set by an HTTP endpoint behind a real button click. The model has no tool that sets it, so "ask before acting" is a property of the system. |
 | **It finds problems nobody reported** | The operations sweep flags SLA breaches against each account's own contract, cross-account issues, credits owed that nobody claimed, and **past answers that current policy contradicts**. |
 | **Model-agnostic** | Runs on Claude or any OpenAI-compatible endpoint — including free tiers (Groq, Gemini) and a local Ollama. None of the guarantees above live in the model. |
@@ -45,16 +69,25 @@ Two things hidden in the data that the system gets right:
 
 ## Quick start
 
+Needs Python 3.10+ and Node.js 20.19+ (22 recommended).
+
 ```bash
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+cp .env.example .env               # add a model key (a free Groq key works)
 
-cp .env.example .env               # then add a model key (a free Groq key works)
+cd frontend && npm ci && npm run build && cd ..   # React build -> public/
 uvicorn app.main:app --reload
 ```
 
-Open <http://localhost:8000>.
+Open <http://localhost:8000> and sign in with a [demo login](#demo-logins-for-reviewers).
+Set `LARKWAY_JWT_SECRET` in `.env` to keep sessions across restarts; without it, local
+runs use a random per-process secret and print a warning.
+
+**Frontend development** with hot reload: run the backend on port 8000 as above, then
+`cd frontend && npm run dev` and open <http://localhost:5173> — Vite proxies `/api` to
+FastAPI.
 
 ### Choosing a model (free options included)
 
@@ -93,16 +126,23 @@ the offline eval harness. The UI says so plainly rather than failing silently.
 
 ### Deploying to Vercel
 
-`vercel.json` deploys the FastAPI app as a single Python function; `.vercelignore`
-keeps secrets, the virtualenv and source-only files out of the upload.
+`vercel.json` does both halves: it installs and builds the React app
+(`cd frontend && npm ci && npm run build`, output in `public/`, served from Vercel's CDN)
+and deploys FastAPI as a single Python function that receives `/api/*`. `.vercelignore`
+keeps secrets, virtualenvs, `node_modules` and local build output out of the upload.
+With the GitHub repo connected, every push to `main` deploys; `vercel deploy --prod`
+also works from a local checkout.
 
-```bash
-vercel deploy --prod
-```
+Environment variables in the Vercel project:
 
-Set `PP_PROVIDER`, `PP_BASE_URL`, `PP_MODEL`, `PP_FALLBACK_MODELS` and `PP_API_KEY` as
-environment variables in the Vercel project. Conversations and pending actions live in memory, so a cold start
-begins a fresh session — fine for a demo; a real deployment would put them in Redis.
+| Variable | Required | |
+|---|---|---|
+| `LARKWAY_JWT_SECRET` | **yes** | Long random string that signs session tokens. Without it, login refuses with a clear 503 rather than signing tokens with a per-instance secret. |
+| `PP_PROVIDER`, `PP_BASE_URL`, `PP_MODEL`, `PP_API_KEY` | for chat | The model provider. Without them the app runs with chat disabled. |
+| `PP_FALLBACK_MODELS`, `LARKWAY_TOKEN_MINUTES` | no | See [Configuration](#configuration). |
+
+Conversations and pending actions live in memory, so a cold start begins a fresh
+session — fine for a demo; a real deployment would put them in Redis.
 
 ### Using the tools from Claude Code (MCP)
 
@@ -159,9 +199,10 @@ policy engine's decision back (abridged):
 
 ## Try it
 
-Pick a user from the sidebar; each one sees a genuinely different system.
+Sign in with a [demo login](#demo-logins-for-reviewers); each role sees a genuinely
+different system.
 
-**As Rohan Iyer (Halcyon Foods — Enterprise, custom contract)**
+**As `customer` — Rohan Iyer, Halcyon Foods (Enterprise, custom contract)**
 > Can I cancel SHP-5001 without a cancellation fee? Explain why.
 
 Chains several tools, finds that the SOP would charge INR 350 but the signed agreement
@@ -175,17 +216,17 @@ for carrier verification before cancelling.
 **INR 540** — the SOP's 90-minute threshold is met and the credit is the lower of
 INR 600 or 15% of the fee.
 
-**As Ananya Das (Brightmoor Textiles — Scale, custom contract)**
-> A pickup is two hours late because of carrier fault. Should I get a service credit?
-
-**No** — their contract replaces the SOP's 90-minute threshold with 3 hours. Same facts,
-opposite answer. Contract-specific, not policy-generic.
-
 > Show me the orders for Orbitron Medical.
 
-Refused in the data layer.
+Refused in the data layer — and the operations console isn't there for this role at all;
+calling its endpoint directly returns 403.
 
-**As Kavya Nair (Support Manager)**
+**As `ops` — Kavya Nair, Support Manager**
+> A Brightmoor Textiles pickup was two hours late because of carrier fault. Is a credit owed?
+
+**No** — Brightmoor's contract replaces the SOP's 90-minute threshold with 3 hours. The
+same facts gave Halcyon Foods INR 540. Contract-specific, not policy-generic.
+
 > What needs my attention right now?
 
 14 signals: two breached P1s, a bulk-upload issue hitting two customers, two customers
@@ -197,24 +238,35 @@ a manager's approval). Also available as the **Operations signals** tab.
 ## Verify the claims
 
 ```bash
-pytest -q                          # 94 tests, no API key needed
+pytest -q                          # 113 tests, no API key needed
 python -m evals.run                # 16 golden scenarios, offline
 python -m evals.run --live         # also drives the real agent and checks its prose
 python scripts/verify_policy_pack.py
+
+cd frontend
+npm run lint                       # oxlint, incl. jsx-a11y and React hooks rules
+npm run typecheck                  # tsc -b
+npm test                           # 43 Vitest + React Testing Library tests
+npm run build
+npm run check:browser              # Playwright: axe scans + 375/768/1280px layouts
 ```
 
-The test suite covers the entitlement maths, the access-control boundary, the
-confirmation gate, both model backends, and the agent loop itself (driven by a
-scripted model, so the loop wiring is verified without a key).
+The Python suite covers the entitlement maths, the access-control boundary, JWT login
+and role checks, the confirmation gate, both model backends, and the agent loop itself
+(driven by a scripted model, so the loop wiring is verified without a key). The
+frontend tests cover the typed API client, streaming, the confirmation card, the trust
+panel, the ops console and role gating. The browser checks need
+`npx playwright install chromium` once, and `LARKWAY_PYTHON` pointing at the venv's
+Python (e.g. `../.venv/Scripts/python.exe`) so Playwright can start the backend.
 
 ---
 
 ## Architecture at a glance
 
 ```
-Browser (chat + tool trace + trust panel + ops dashboard)
-   │  SSE
-FastAPI  ──────────────────────────────────────────────────┐
+React + TypeScript (Vite): login · chat · tool trace · trust panel · ops console
+   │  typed API client — JSON + SSE, Authorization: Bearer <JWT>
+FastAPI ── JWT auth + role checks ── audit log (background task) ──┐
    │                                                        │
 Agent loop (Claude or any OpenAI-compatible model)          │ /api/actions/{id}/confirm
    │  principal injected server-side                        │ ← the only path that can
@@ -255,10 +307,16 @@ app/
   agent/providers.py   model backends (Anthropic, OpenAI-compatible)
   agent/loop.py        agent loop
   agent/prompts.py     system prompts
-  main.py              FastAPI app
+  auth.py              JWT login (OAuth2 password flow), role dependencies
+  main.py              FastAPI app: auth, chat (SSE), actions, ops, static frontend
   mcp_server.py        the same tools over MCP (stdio)
-  web/                 chat UI
+frontend/              React + TypeScript (Vite)
+  src/api/             typed API client, SSE parser, response types
+  src/auth/            session handling (sessionStorage, auto sign-out on expiry)
+  src/components/      login, workspace, chat, confirmation card, trust panel, ops
+  e2e/                 Playwright: axe scans, responsive layouts, screenshots
 api/index.py           Vercel entry point
+docs/screenshots/      README screenshots (from the Playwright run)
 data/
   source_docs/         the six policy and contract PDFs
   policy_pack/         extracted rules + their source quotes
@@ -303,6 +361,8 @@ python -m app.ingest && python scripts/verify_policy_pack.py
 | `PP_MAX_TOKENS` | `8000` | |
 | `PP_MAX_AGENT_STEPS` | `10` | Safety stop on runaway tool loops. |
 | `PP_REFUSAL_FALLBACK` | `true` | Claude only. Server-side fallback if the model declines; downgrades itself if the beta is not enabled on the key. |
+| `LARKWAY_JWT_SECRET` | — | Signs session tokens. Required on Vercel; locally a random per-process secret is used if unset. |
+| `LARKWAY_TOKEN_MINUTES` | `30` | Session token lifetime. |
 
 ## Assumptions
 

@@ -1,0 +1,46 @@
+data: {"type": "session", "session_id": "e2e"}
+
+data: {"type": "tool_start", "tool": "lookup_records", "label": "Querying account, order and ticket data", "family": "data", "detail": "orders — order_id=SHP-5001", "tool_use_id": "t1"}
+
+data: {"type": "tool_end", "tool": "lookup_records", "tool_use_id": "t1", "ok": true, "summary": "1 row(s), restricted to CUS-101"}
+
+data: {"type": "tool_start", "tool": "evaluate_cancellation", "label": "Calculating cancellation eligibility and fee", "family": "calculation", "detail": "SHP-5001", "tool_use_id": "t2"}
+
+data: {"type": "tool_end", "tool": "evaluate_cancellation", "tool_use_id": "t2", "ok": true, "summary": "SHP-5001 can be cancelled with no cancellation fee — the Halcyon Foods Enterprise Agreement waives it."}
+
+data: {"type": "tool_start", "tool": "propose_action", "label": "Preparing an action for confirmation", "family": "action", "detail": "cancel_order", "tool_use_id": "t3"}
+
+data: {"type": "tool_end", "tool": "propose_action", "tool_use_id": "t3", "ok": true, "summary": "ACT-FC4DC384 prepared — awaiting confirmation"}
+
+data: {"type": "text", "text": "Yes — you can cancel **SHP-5001** with **no cancellation fee"}
+
+data: {"type": "text", "text": "**.\n\n- Your **Halcyon Foods Enterprise Agreement** (section "}
+
+data: {"type": "text", "text": "2) waives the fee for any BOOKED shipment, however long ago "}
+
+data: {"type": "text", "text": "it was booked.\n- On its own, the SOP would charge INR 350, b"}
+
+data: {"type": "text", "text": "ecause the request came 150 minutes after booking (outside i"}
+
+data: {"type": "text", "text": "ts 20-minute window). The agreement outranks the SOP.\n- A pa"}
+
+data: {"type": "text", "text": "st answer to you (CASE-240) quoted that INR 350 fee — it was"}
+
+data: {"type": "text", "text": " wrong, and current policy overrides it.\n\nOne caution: known"}
+
+data: {"type": "text", "text": " issue **KI-322** means TransVelo pickup confirmations can l"}
+
+data: {"type": "text", "text": "ag by up to 35 minutes, and this order is already inside its"}
+
+data: {"type": "text", "text": " pickup window, so `BOOKED` may be stale. I've prepared the "}
+
+data: {"type": "text", "text": "cancellation below — confirm it once TransVelo confirms the "}
+
+data: {"type": "text", "text": "parcel hasn't been collected."}
+
+data: {"type": "proposal", "action": {"action_id": "ACT-FC4DC384", "action_type": "cancel_order", "label": "Cancel order", "payload": {"order_id": "SHP-5001", "fee_inr": 0, "reason": "Customer request; agreement waives the fee"}, "account_id": "CUS-101", "proposed_by": "cust-halcyon", "proposed_by_role": "customer", "proposed_at": "2026-09-19 14:00 IST", "preview": "Cancel SHP-5001\nNo cancellation fee\nReason: Customer request; agreement waives the fee", "risk": "high", "warnings": [], "status": "pending_confirmation", "confirmed_by": null, "confirmed_at": null, "executed_at": null, "result": null, "next_step": "NOTHING HAS CHANGED YET. The user must press Confirm on this proposal in the interface. Tell them exactly what will happen and wait. Do not call execute_confirmed_action until they have confirmed."}}
+
+data: {"type": "trust", "trust": {"confidence": "medium", "citations": [{"doc_id": "cancellation_credit_sop_v3", "document": "Larkway Cancellation & Service Credit SOP v3", "section": "1. Order cancellation", "quote": "BOOKED, not yet PICKED_UP: Can be cancelled. No fee within 20 minutes of booking. After 20 minutes, charge INR 350 unless a customer agreement explicitly waives the cancellation fee.", "authority_tier": 2, "status": "CURRENT", "effective": "2026-08-01"}, {"doc_id": "agreement_cus_101", "document": "Halcyon Foods Enterprise Agreement", "section": "2. Shipment cancellation", "quote": "Halcyon Foods may cancel any BOOKED shipment before pickup with no cancellation fee, however long ago the shipment was booked.", "authority_tier": 1, "status": "ACTIVE", "effective": "2026-02-01"}, {"doc_id": "product_ops_guide", "document": "Larkway Product Operations Guide", "section": "KI-322 - TransVelo pickup confirmation lag", "quote": "TransVelo pickup confirmation webhooks can arrive up to 35 minutes late. A parcel may already be collected while Larkway still shows BOOKED.", "authority_tier": 3, "status": "CURRENT", "effective": "2026-09-15"}], "conflicts": [{"type": "historical_guidance_contradicted", "source": "CASE-240 (2026-08-28 15:20)", "claim": "Agent told the customer a INR 350 cancellation fee applied after 20 minutes.", "resolution": "Superseded. The support policy (s1) makes past tickets background only; the authoritative source above governs."}], "unknowns": [], "assumptions": [], "escalation_reasons": ["KI-322 makes the BOOKED status unreliable for this order; the SOP forbids cancelling a shipment that has actually been picked up, so carrier status must be verified first."], "sources_consulted": ["Halcyon Foods Enterprise Agreement", "Larkway Cancellation & Service Credit SOP v3", "Larkway Product Operations Guide"], "pending_actions": [{"action_id": "ACT-FC4DC384", "action_type": "cancel_order", "label": "Cancel order", "payload": {"order_id": "SHP-5001", "fee_inr": 0, "reason": "Customer request; agreement waives the fee"}, "account_id": "CUS-101", "proposed_by": "cust-halcyon", "proposed_by_role": "customer", "proposed_at": "2026-09-19 14:00 IST", "preview": "Cancel SHP-5001\nNo cancellation fee\nReason: Customer request; agreement waives the fee", "risk": "high", "warnings": [], "status": "pending_confirmation", "confirmed_by": null, "confirmed_at": null, "executed_at": null, "result": null}]}}
+
+data: {"type": "done", "stop_reason": "end_turn"}
+

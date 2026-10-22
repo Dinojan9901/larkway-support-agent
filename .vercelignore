@@ -18,3 +18,11 @@ Dockerfile
 Procfile
 render.yaml
 *.md
+
+# Frontend: Vercel installs and builds it fresh (vercel.json); never upload local
+# dependencies, build output or browser-test artefacts.
+frontend/node_modules/
+frontend/test-results/
+frontend/playwright-report/
+public/
+docs/
